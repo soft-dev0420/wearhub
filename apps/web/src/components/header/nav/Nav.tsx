@@ -15,8 +15,14 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { Users } from "lucide-react";
 
-const Nav = () => {
-  const { isMenuOpened, setIsMenuOpened } = useContext(NavContext);
+const Nav: React.FC = () => {
+  const context = useContext(NavContext);
+  
+  if (!context) {
+    throw new Error('Nav must be used within a NavProvider');
+  }
+  
+  const { isMenuOpened, setIsMenuOpened } = context;
   const {messages} = useLang();
   const { user } = useAuth();
 
@@ -24,27 +30,27 @@ const Nav = () => {
 
   return (
     <nav
-      onClick={() => setIsMenuOpened((prev) => !prev)}
+      onClick={() => setIsMenuOpened(!isMenuOpened)}
       className={`${styles.nav} ${
         isMenuOpened && styles.navActive
       } flex gap-1 lg:gap-4 shadow lg:shadow-none bg-transparent lg:bg-transparent`}
     >
-      <NavLink path="/">
+      <NavLink path="/" title="Home">
         <FaHome size={iconSize} className="inline mr-2 align-middle" />
         {messages['homeTitle']}
       </NavLink>
 
-      <NavLink path="/about-us">
+      <NavLink path="/about-us" title="About Us">
         <FaInfoCircle size={iconSize} className="inline mr-2 align-middle" />
         {messages['aboutusTitle']}
       </NavLink>
 
-      <NavLink path="/services">
+      <NavLink path="/services" title="Services">
         <FaCogs size={iconSize} className="inline mr-2 align-middle" />
         {messages['termsofuseTitle']}
       </NavLink>
 
-      <NavLink path="/faq">
+      <NavLink path="/faq" title="FAQ">
         <FaQuestionCircle size={iconSize} className="inline mr-2 align-middle" />
         FAQ
       </NavLink>

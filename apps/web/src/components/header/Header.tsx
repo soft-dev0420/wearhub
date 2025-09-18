@@ -27,55 +27,73 @@ import { doc, getDoc, onSnapshot, collection, query, where } from "firebase/fire
 import { db } from "@/firebase/firestore";
 import Image from "next/image";
 
-const dummyAlarms = [
-  { id: 1, content: "New message received", read: false },
-  { id: 2, content: "Your profile was updated", read: true },
-  { id: 3, content: "Admin approved your request", read: false },
+interface Alarm {
+  id: string;
+  title: string;
+  content: string;
+  read: boolean;
+  date: string;
+  type: string;
+}
+
+const dummyAlarms: Alarm[] = [
+  { id: "1", title: "New message received", content: "You have a new message", read: false, date: new Date().toISOString(), type: "message" },
+  { id: "2", title: "Your profile was updated", content: "Profile updated successfully", read: true, date: new Date().toISOString(), type: "update" },
+  { id: "3", title: "Admin approved your request", content: "Your request has been approved", read: false, date: new Date().toISOString(), type: "approval" },
 ];
 
-const Header = () => {
+const Header: React.FC = () => {
   const { messages, switchLocale, locale } = useLang();
   const { user, loading } = useAuth();
-  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
-  const avatarMenuRef = useRef(null);
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState<boolean>(false);
+  const avatarMenuRef = useRef<HTMLDivElement>(null);
 
-  const [alarms, setAlarms] = useState(dummyAlarms); // Replace with fetch from backend
-  const [isAlarmDropdownOpen, setIsAlarmDropdownOpen] = useState(false);
-  const alarmDropdownRef = useRef(null);
+  const [alarms, setAlarms] = useState<Alarm[]>(dummyAlarms);
+  const [isAlarmDropdownOpen, setIsAlarmDropdownOpen] = useState<boolean>(false);
+  const alarmDropdownRef = useRef<HTMLDivElement>(null);
 
   const hasUnreadAlarms = alarms.some((alarm) => !alarm.read);
 
   useEffect(() => {
+    if (!user) return;
+
     const alarmsRef = collection(db, "alarms");
     let q;
 
-    if (user?.role === "caregiver") {
+    if (user.role === "caregiver") {
       q = query(alarmsRef, where("assignedTo", "in", [user.email, "all"]));
-    } else if (user?.role === "manager") {
+    } else if (user.role === "manager") {
       q = query(alarmsRef, where("assignedTo", "in", [user.email, "all", "manager"]));
     } else {
       q = query(alarmsRef);
     }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setAlarms(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setAlarms(snapshot.docs.map((doc) => ({ 
+        id: doc.id, 
+        title: doc.data().title || "",
+        content: doc.data().content || "",
+        read: doc.data().read || false,
+        date: doc.data().date || new Date().toISOString(),
+        type: doc.data().type || "notification"
+      })));
     });
 
     return () => unsubscribe();
   }, [user]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
+    const handleClickOutside = (event: MouseEvent) => {
       if (
         avatarMenuRef.current &&
-        !avatarMenuRef.current.contains(event.target)
+        !avatarMenuRef.current.contains(event.target as Node)
       ) {
         setIsAvatarMenuOpen(false);
       }
       if (
         alarmDropdownRef.current &&
-        !alarmDropdownRef.current.contains(event.target) &&
-        event.target.getAttribute("data-alarm-btn") !== "true"
+        !alarmDropdownRef.current.contains(event.target as Node) &&
+        (event.target as HTMLElement).getAttribute("data-alarm-btn") !== "true"
       ) {
         setIsAlarmDropdownOpen(false);
       }
@@ -84,7 +102,7 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = async (): Promise<void> => {
     try {
       await signOut(auth);
       setIsAvatarMenuOpen(false);
@@ -97,8 +115,7 @@ const Header = () => {
     if (isAlarmDropdownOpen && hasUnreadAlarms) {
       setAlarms((prev) => prev.map((alarm) => ({ ...alarm, read: true })));
     }
-    // eslint-disable-next-line
-  }, [isAlarmDropdownOpen]);
+  }, [isAlarmDropdownOpen, hasUnreadAlarms]);
 
   return (
     <header className="bg-slate-900/95 backdrop-blur supports-[backdrop-filter]:bg-slate-900/80 text-white border-b border-slate-800 h-16 fixed w-full top-0 z-50">
@@ -118,19 +135,18 @@ const Header = () => {
           >
             <Calendar className="text-white" />
           </Link>
-          {user.email && <div className="relative" ref={alarmDropdownRef}>
+          {user?.email && <div className="relative" ref={alarmDropdownRef}>
             <button
               data-alarm-btn="true"
               className="relative p-2 rounded-full hover:bg-slate-800/60 transition-colors"
               onClick={() => setIsAlarmDropdownOpen((prev) => !prev)}
-              aria-label={messages.notificationsTitle}
+              aria-label={messages.notificationsTitle || "Notifications"}
             >
               <BellRing className="text-white" />
               {hasUnreadAlarms && (
                 <span className="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-blue-500 ring-2 ring-slate-900"></span>
               )}
             </button>
-            {/* Dropdown */}
             {isAlarmDropdownOpen && (
               <div
                 className="
@@ -147,11 +163,11 @@ const Header = () => {
                 <div className="max-h-80 overflow-y-auto">
                   {alarms.length === 0 ? (
                     <div className="p-4 text-slate-400 text-sm">
-                      {messages["noNotifications"] || "No notifications"}
+                      {"No notifications"}
                     </div>
                   ) : (
                     alarms
-                      .sort((a, b) => new Date(b.date) - new Date(a.date))
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                       .map((alarm) => (
                         <div
                           key={alarm.id}
@@ -204,7 +220,7 @@ const Header = () => {
             )}
           </div>}
 
-          {!loading && user.email ? (
+          {!loading && user?.email ? (
             <div className="relative" ref={avatarMenuRef}>
               <button
                 onClick={() => setIsAvatarMenuOpen((prev) => !prev)}
@@ -213,7 +229,7 @@ const Header = () => {
                 <div className="h-10 w-10 rounded-full flex items-center justify-center">
                   <Image
                     className="h-10 w-10 rounded-full object-cover"
-                    src={user.avatar || "/user.jpg"}
+                    src={user.photoURL || "/user.jpg"}
                     alt=""
                     height={40}
                     width={40}
@@ -227,7 +243,6 @@ const Header = () => {
               </button>
               {isAvatarMenuOpen && (
                 <div className="absolute right-0 mt-2 w-60 bg-slate-900 text-white shadow-xl rounded-xl overflow-hidden ring-1 ring-slate-700 z-50">
-                  {/* User Info */}
                   <div className="px-5 py-4 border-b border-slate-800">
                     <p className="text-sm text-slate-400">
                       {messages["signasLabel"]}
@@ -250,9 +265,7 @@ const Header = () => {
                     </span>
                   </Link>
 
-                  {/* Navigation Links */}
                   <div className="py-1">
-
                     {user.isAdmin && (
                       <Link
                         href="/settings"

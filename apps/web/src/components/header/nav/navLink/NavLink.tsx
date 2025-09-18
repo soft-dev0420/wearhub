@@ -1,8 +1,15 @@
 "use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { ReactNode } from "react"
 
-const NavLink = ({path, children, title}) => {
+interface NavLinkProps {
+  path: string;
+  children: ReactNode;
+  title: string;
+}
+
+const NavLink: React.FC<NavLinkProps> = ({path, children, title}) => {
     const pathName = usePathname()
     // console.log(pathName);
   return (
