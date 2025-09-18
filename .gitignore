@@ -1,0 +1,22 @@
+# Core
+node_modules/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.turbo/
+coverage/
+
+# OS/IDE
+.DS_Store
+.vscode/
+*.log
+
+# Env
+.env
+.env.*
