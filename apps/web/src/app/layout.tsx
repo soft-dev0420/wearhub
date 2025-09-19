@@ -7,7 +7,7 @@ import Providers from "@/providers/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ModernShop - Premium Fashion & Lifestyle",
+  title: "WearHub - Premium Fashion & Lifestyle",
   description: "Discover curated fashion for the modern lifestyle",
 };
 
