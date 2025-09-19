@@ -9,22 +9,22 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ModeToggle } from "@/components/mode-toggle";
-import LogoImg from "../../public/logo.svg";
+import LogoImg from "../../public/logo.png";
 
 export const Header: React.FC = () => {
   const pathname = usePathname();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 grid place-items-center">
-      <div className="container flex h-16 items-center justify-between">
+      <div className="container flex h-20 items-center justify-between">
         <div className="flex items-center gap-6 md:gap-10">
           <Link href="/" className="flex items-center space-x-2">
-            <Image src={LogoImg} width={70} alt="WearHub" />
+            <Image src={LogoImg} width={100} alt="WearHub" className="transition-all duration-300 dark:invert" />
           </Link>
           <nav className="hidden gap-6 md:flex">
             <Link
               href="/"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
+              className={`text-lg font-medium transition-colors hover:text-primary ${
                 pathname === "/" ? "text-primary" : "text-muted-foreground"
               }`}
             >
@@ -32,7 +32,7 @@ export const Header: React.FC = () => {
             </Link>
             <Link
               href="/shop"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
+              className={`text-lg font-medium transition-colors hover:text-primary ${
                 pathname === "/shop"
                   ? "text-primary"
                   : "text-muted-foreground"
@@ -42,7 +42,7 @@ export const Header: React.FC = () => {
             </Link>
             <Link
               href="/categories"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
+              className={`text-lg font-medium transition-colors hover:text-primary ${
                 pathname === "/categories"
                   ? "text-primary"
                   : "text-muted-foreground"
@@ -52,7 +52,7 @@ export const Header: React.FC = () => {
             </Link>
             <Link
               href="/about"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
+              className={`text-lg font-medium transition-colors hover:text-primary ${
                 pathname === "/about"
                   ? "text-primary"
                   : "text-muted-foreground"
@@ -62,7 +62,7 @@ export const Header: React.FC = () => {
             </Link>
             <Link
               href="/contact"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
+              className={`text-lg font-medium transition-colors hover:text-primary ${
                 pathname === "/contact"
                   ? "text-primary"
                   : "text-muted-foreground"

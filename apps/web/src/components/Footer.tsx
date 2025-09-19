@@ -12,6 +12,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FooterModeToggle } from "@/components/footer-mode-toggle";
+import LogoImg from "../../public/logo.png";
 
 export const Footer: React.FC = () => {
   const pathname = usePathname();
@@ -22,13 +23,14 @@ export const Footer: React.FC = () => {
         <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
           <div>
             <div className="flex items-center space-x-2">
-              <ShoppingBag className="h-6 w-6" />
-              <span className="font-bold">WearHub</span>
+              <Image
+                src={LogoImg}
+                width={165}
+                alt="WearHub"
+                className="transition-all duration-300 dark:invert"
+                // The 'dark:invert' utility inverts the logo in dark mode for better contrast.
+              />
             </div>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Curated fashion for the modern lifestyle. Quality products that
-              stand the test of time.
-            </p>
             <div className="mt-4 flex space-x-3">
               <Button variant="ghost" size="icon" className="h-8 w-8">
                 <Facebook className="h-4 w-4" />

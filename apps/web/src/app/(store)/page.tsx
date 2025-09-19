@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useCart, useFavorites } from "@/lib/store";
 import { useQuery } from "@tanstack/react-query";
+import { mockProducts, mockCategories } from "@/lib/mockData";
 
 export default function Home() {
   const { addItem: addToCart } = useCart();
@@ -32,11 +33,7 @@ export default function Home() {
   } = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
-      const response = await fetch("/api/products/limited?limit=12");
-      if (!response.ok) {
-        throw new Error("Failed to fetch products");
-      }
-      return response.json();
+      return mockProducts;
     },
   });
 
@@ -47,24 +44,34 @@ export default function Home() {
   } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
-      const response = await fetch("/api/categories/limited?limit=4");
-      if (!response.ok) {
-        throw new Error("Failed to fetch categories");
-      }
-      return response.json();
+      return mockCategories;
     },
   });
 
-  const handleToggleFavorite = (product: (typeof products)[0]) => {
+  const handleToggleFavorite = (product: NonNullable<typeof products>[0]) => {
     if (isFavorite(product.id)) {
       removeFromFavorites(product.id);
     } else {
-      addToFavorites(product);
+      addToFavorites({
+        ...product,
+        price: product.price.toString(),
+        images: product.images.map(img => ({
+          ...img,
+          alt: img.url
+        }))
+      });
     }
   };
 
-  const handleAddToCart = (product: (typeof products)[0]) => {
-    addToCart(product);
+  const handleAddToCart = (product: NonNullable<typeof products>[0]) => {
+    addToCart({
+      ...product,
+      price: product.price.toString(),
+      images: product.images.map(img => ({
+        ...img,
+        alt: img.url
+      }))
+    });
   };
 
   if (productsIsLoading || categoriesIsLoading) return <div>Loading...</div>;
@@ -141,7 +148,7 @@ export default function Home() {
             </Link>
           </div>
           <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4 lg:gap-6">
-            {categories.map(
+            {categories?.map(
               (category: (typeof categories)[0], index: number) => {
                 // const initials = category.name
                 //   .split(" ")
@@ -185,7 +192,7 @@ export default function Home() {
             </Link>
           </div>
           <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {products.map((product: (typeof products)[0]) => (
+            {products?.map((product: (typeof products)[0]) => (
               <div key={product.id} className="group relative flex flex-col">
                 <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-muted">
                   {/* <Image
