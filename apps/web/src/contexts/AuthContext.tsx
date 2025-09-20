@@ -11,7 +11,6 @@ import { User } from "firebase/auth";
 interface CustomUser extends User {
   role: string;
   isAdmin: boolean;
-  setList: boolean;
   status: string;
 }
 
@@ -41,12 +40,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             role: userData.role || "",
             status: userData.status || "",
             isAdmin: userData.isAdministrator || false,
-            setList: userData.setList || false,
           } as CustomUser);
         });
 
-        const listDocRef = doc(db, "lists", userEmail || "");
-        const listSnap = await getDoc(listDocRef);
+        // const listDocRef = doc(db, "lists", userEmail || "");
+        // const listSnap = await getDoc(listDocRef);
       } else {
         setUser(null);
       }

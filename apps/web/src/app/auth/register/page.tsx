@@ -1,37 +1,103 @@
 "use client";
 
-import type React from "react";
-
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  ShoppingBag,
-  ArrowLeft,
-  AlertCircle,
-  Loader2,
-  Github,
-} from "lucide-react";
-import { FcGoogle } from "react-icons/fc";
+import { ArrowLeft, AlertCircle } from "lucide-react";
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  updateProfile,
+  sendEmailVerification 
+} from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, googleProvider } from "@/firebase/auth";
+import { db } from "@/firebase/firestore";
+
+// Import components
+import AuthForm from "@/components/auth/AuthForm";
+import RoleSelectionForm from "@/components/auth/RoleSelectionForm";
+import SellerDetailsForm from "@/components/auth/SellerDetailsForm";
+import BuyerDetailsForm from "@/components/auth/BuyerDetailsForm";
+import RegistrationComplete from "@/components/auth/RegistrationComplete";
+
+type UserRole = "seller" | "buyer";
+type RegistrationStep = "auth" | "role" | "details" | "complete";
+
+interface SellerDetails {
+  companyName: string;
+  brandName: string;
+  yearEstablished: string;
+  areaOfOperation: string;
+  productCategory: string;
+  logistics: string;
+  minOrderValue: string;
+  currency: string;
+  bankAccount: string;
+  regonKrsEin: string;
+  address: string;
+  phone: string;
+  website: string;
+}
+
+interface BuyerDetails {
+  companyName: string;
+  businessType: string;
+  companyId: string;
+  address: string;
+  phone: string;
+  website: string;
+  facebook: string;
+  instagram: string;
+}
 
 export default function RegisterPage() {
+  // Auth states
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
+  
+  // Registration flow states
+  const [currentStep, setCurrentStep] = useState<RegistrationStep>("auth");
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<any>(null);
+  
+  // Form states
+  const [sellerDetails, setSellerDetails] = useState<SellerDetails>({
+    companyName: "",
+    brandName: "",
+    yearEstablished: "",
+    areaOfOperation: "",
+    productCategory: "",
+    logistics: "",
+    minOrderValue: "",
+    currency: "EUR",
+    bankAccount: "",
+    regonKrsEin: "",
+    address: "",
+    phone: "",
+    website: "",
+  });
+  
+  const [buyerDetails, setBuyerDetails] = useState<BuyerDetails>({
+    companyName: "",
+    businessType: "",
+    companyId: "",
+    address: "",
+    phone: "",
+    website: "",
+    facebook: "",
+    instagram: "",
+  });
+  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmailRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
@@ -43,6 +109,12 @@ export default function RegisterPage() {
       return;
     }
 
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      setIsLoading(false);
+      return;
+    }
+
     if (!acceptTerms) {
       setError("You must accept the terms and conditions");
       setIsLoading(false);
@@ -50,17 +122,130 @@ export default function RegisterPage() {
     }
 
     try {
-      // Register the user
-      const response = await fetch("/api/auth/register", {
+      // Create user with email and password
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Update user profile with display name
+      await updateProfile(user, {
+        displayName: name,
+      });
+
+      // Send email verification
+      await sendEmailVerification(user);
+
+      setFirebaseUser(user);
+      setCurrentStep("role");
+    } catch (error: any) {
+      let errorMessage = "An error occurred during registration";
+      
+      switch (error.code) {
+        case "auth/email-already-in-use":
+          errorMessage = "This email is already registered";
+          break;
+        case "auth/invalid-email":
+          errorMessage = "Invalid email address";
+          break;
+        case "auth/weak-password":
+          errorMessage = "Password is too weak";
+          break;
+        case "auth/network-request-failed":
+          errorMessage = "Network error. Please check your connection";
+          break;
+        default:
+          errorMessage = error.message || errorMessage;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleRegister = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+
+      setFirebaseUser(user);
+      setCurrentStep("role");
+    } catch (error: any) {
+      let errorMessage = "An error occurred during Google registration";
+      
+      switch (error.code) {
+        case "auth/popup-closed-by-user":
+          errorMessage = "Registration cancelled";
+          break;
+        case "auth/popup-blocked":
+          errorMessage = "Popup was blocked. Please allow popups for this site";
+          break;
+        default:
+          errorMessage = error.message || errorMessage;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // const handleFacebookRegister = async () => {
+  //   setIsLoading(true);
+  //   setError(null);
+
+  //   try {
+  //     const result = await signInWithPopup(auth, facebookProvider);
+  //     const user = result.user;
+
+  //     setFirebaseUser(user);
+  //     setCurrentStep("role");
+  //   } catch (error: any) {
+  //     let errorMessage = "An error occurred during Facebook registration";
+      
+  //     switch (error.code) {
+  //       case "auth/popup-closed-by-user":
+  //         errorMessage = "Registration cancelled";
+  //         break;
+  //       case "auth/popup-blocked":
+  //         errorMessage = "Popup was blocked. Please allow popups for this site";
+  //         break;
+  //       default:
+  //         errorMessage = error.message || errorMessage;
+  //     }
+      
+  //     setError(errorMessage);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
+  const handleRoleSelection = (role: UserRole) => {
+    setSelectedRole(role);
+    setCurrentStep("details");
+  };
+
+  const handleFinalRegistration = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const userData = {
+        firebaseUid: firebaseUser.uid,
+        name: firebaseUser.displayName || name,
+        email: firebaseUser.email,
+        role: selectedRole,
+        ...(selectedRole === "seller" ? sellerDetails : buyerDetails),
+      };
+
+      const response = await fetch("/api/user/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-        }),
+        body: JSON.stringify(userData),
       });
 
       const data = await response.json();
@@ -69,164 +254,109 @@ export default function RegisterPage() {
         throw new Error(data.error || "Registration failed");
       }
 
-      // Sign in the user after successful registration
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        throw new Error("Failed to sign in after registration");
+      // Create user document in Firestore
+      const userEmail = firebaseUser.email?.toLowerCase();
+      if (userEmail) {
+        await setDoc(doc(db, "users", userEmail), {
+          name: firebaseUser.displayName || name,
+          email: userEmail,
+          role: selectedRole,
+          status: selectedRole === "buyer" ? "active" : "pending",
+          isAdministrator: false,
+          createdAt: new Date().toISOString(),
+          emailVerified: firebaseUser.emailVerified,
+          ...(selectedRole === "seller" ? sellerDetails : buyerDetails),
+        });
       }
 
-      // Redirect to profile page
-      router.push("/profile");
-      router.refresh();
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "An error occurred during registration"
-      );
+      setCurrentStep("complete");
+    } catch (error: any) {
+      setError(error.message || "An error occurred during registration");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleGoToProfile = () => {
+    router.push("/profile");
+  };
+
   return (
-    <div className="container mx-auto flex min-h-screen max-w-6xl flex-col py-12">
-      <div className="mb-8">
-        <Link
-          href="/"
-          className="flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to shopping
-        </Link>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Top Bar */}
+      <div className="bg-white text-slate-800 py-2">
+        <div className="container mx-auto flex justify-between items-center text-sm">
+          <div className="flex items-center space-x-6">
+            <span>Mon - Fri 10am - 5pm</span>
+            <span>info@wearhub.com</span>
+            <span>(555) 5678 12340</span>
+          </div>
+        </div>
       </div>
 
-      <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[400px]">
-        <div className="flex flex-col space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <ShoppingBag className="h-6 w-6 text-primary" />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Create an account
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Enter your details to create a new account
-          </p>
+      <div className="container mx-auto flex min-h-screen max-w-6xl flex-col py-12">
+        <div className="mb-8">
+          <Link
+            href="/"
+            className="flex items-center text-sm text-white/70 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to shopping
+          </Link>
         </div>
 
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="bg-red-900/20 border-red-500/50 text-red-100 mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="terms"
-              checked={acceptTerms}
-              onCheckedChange={(checked) => setAcceptTerms(!!checked)}
-            />
-            <Label htmlFor="terms" className="text-sm">
-              I accept the{" "}
-              <Link href="/terms" className="text-primary hover:underline">
-                Terms and Conditions
-              </Link>{" "}
-              and{" "}
-              <Link href="/privacy" className="text-primary hover:underline">
-                Privacy Policy
-              </Link>
-            </Label>
-          </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Please wait
-              </>
-            ) : (
-              "Create Account"
-            )}
-          </Button>
-        </form>
+        {currentStep === "auth" && (
+          <AuthForm
+            name={name}
+            email={email}
+            password={password}
+            confirmPassword={confirmPassword}
+            acceptTerms={acceptTerms}
+            isLoading={isLoading}
+            error={error}
+            onNameChange={setName}
+            onEmailChange={setEmail}
+            onPasswordChange={setPassword}
+            onConfirmPasswordChange={setConfirmPassword}
+            onAcceptTermsChange={setAcceptTerms}
+            onEmailSubmit={handleEmailRegister}
+            onGoogleRegister={handleGoogleRegister}
+            // onFacebookRegister={handleFacebookRegister}
+          />
+        )}
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <Separator className="w-full" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
-              Or continue with
-            </span>
-          </div>
-        </div>
+        {currentStep === "role" && (
+          <RoleSelectionForm onRoleSelect={handleRoleSelection} />
+        )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <Button
-            variant="outline"
-            onClick={() => signIn("google", { callbackUrl: "/profile" })}
-            type="button"
-          >
-            <FcGoogle className="mr-2 h-4 w-4" />
-            Google
-          </Button>
-          <Button variant="outline" disabled>
-            <Github className="mr-2 h-4 w-4" />
-            GitHub
-          </Button>
-        </div>
+        {currentStep === "details" && selectedRole === "seller" && (
+          <SellerDetailsForm
+            sellerDetails={sellerDetails}
+            isLoading={isLoading}
+            onDetailsChange={setSellerDetails}
+            onSubmit={handleFinalRegistration}
+          />
+        )}
 
-        <p className="px-8 text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/auth/login" className="text-primary hover:underline">
-            Sign in
-          </Link>
-        </p>
+        {currentStep === "details" && selectedRole === "buyer" && (
+          <BuyerDetailsForm
+            buyerDetails={buyerDetails}
+            isLoading={isLoading}
+            onDetailsChange={setBuyerDetails}
+            onSubmit={handleFinalRegistration}
+          />
+        )}
+
+        {currentStep === "complete" && (
+          <RegistrationComplete onGoToProfile={handleGoToProfile} />
+        )}
       </div>
     </div>
   );
