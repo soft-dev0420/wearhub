@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { useSession } from "next-auth/react";
+// import { useSession } from "next-auth/react";
+import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +34,8 @@ import {
   Loader2,
   ChevronRight,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
+import { auth } from "@/firebase/auth";
 
 const orders = [
   {
@@ -129,14 +131,21 @@ const paymentMethods = [
 ];
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(tabParam || "account");
 
+  // Handle redirect to login if user is not authenticated
+  useEffect(() => {
+    if (!loading && !user?.email) {
+      router.push("/auth/login");
+    }
+  }, [loading, user, router]);
+
   // Show loading state while checking authentication
-  if (status === "loading") {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -147,13 +156,10 @@ export default function ProfilePage() {
     );
   }
 
-  // This should not happen due to middleware, but just in case
-  if (!session) {
-    router.push("/auth/login");
+  // Show nothing while redirecting (prevents flash of content)
+  if (!user?.email) {
     return null;
   }
-
-  const user = session.user;
 
   return (
     <div className="container mx-auto max-w-6xl py-12">
@@ -190,12 +196,12 @@ export default function ProfilePage() {
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
                 <AvatarImage
-                  src={user?.image || undefined}
-                  alt={user?.name || "User"}
+                  src={user?.photoURL || undefined}
+                  alt={user?.displayName || "User"}
                 />
                 <AvatarFallback>
-                  {user?.name
-                    ? user?.name
+                  {user?.displayName
+                    ? user?.displayName
                         .split(" ")
                         .map((n) => n[0])
                         .join("")
@@ -204,9 +210,9 @@ export default function ProfilePage() {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="text-xl font-bold">{user?.name}</h2>
+                <h2 className="text-xl font-bold">{user?.displayName}</h2>
                 <p className="text-sm text-muted-foreground truncate max-w-[120px]">
-                  {user?.email}
+                  {user?.email || "User"}
                 </p>
               </div>
             </div>
@@ -269,7 +275,7 @@ export default function ProfilePage() {
             <Button
               variant="ghost"
               className="w-full justify-start text-red-500 hover:text-red-600"
-              onClick={() => signOut({ callbackUrl: "/" })}
+              onClick={() => signOut(auth)}
             >
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
@@ -298,7 +304,7 @@ export default function ProfilePage() {
                       <Label htmlFor="name">Full Name</Label>
                       <Input
                         id="name"
-                        defaultValue={user?.name || ""}
+                        defaultValue={user?.displayName || ""}
                         className="mt-1"
                       />
                     </div>
@@ -307,7 +313,7 @@ export default function ProfilePage() {
                       <Input
                         id="email"
                         type="email"
-                        defaultValue={user?.email || ""}
+                        defaultValue={user?.email || "User"}
                         className="mt-1"
                       />
                     </div>

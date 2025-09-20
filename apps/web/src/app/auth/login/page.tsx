@@ -103,19 +103,17 @@ export default function LoginPage() {
       const user = result.user;
 
       // Update last login time in Firestore
-      const userEmail = user.email?.toLowerCase();
-      if (userEmail) {
-        try {
-          await updateDoc(doc(db, "users", userEmail), {
-            lastLoginAt: new Date().toISOString(),
-          });
-        } catch (error) {
-          console.log("Could not update last login time:", error);
-        }
-      }
-
-      router.push(callbackUrl);
-      router.refresh();
+      // const userEmail = user.email?.toLowerCase();
+      // if (userEmail) {
+      //   try {
+      //     await updateDoc(doc(db, "users", userEmail), {
+      //       lastLoginAt: new Date().toISOString(),
+      //     });
+      //   } catch (error) {
+      //     console.log("Could not update last login time:", error);
+      //   }
+      // }
+      router.push("/profile");
     } catch (error: any) {
       let errorMessage = "An error occurred during Google sign in";
       
@@ -136,6 +134,7 @@ export default function LoginPage() {
       setError(errorMessage);
     } finally {
       setIsLoading(false);
+      
     }
   };
 
